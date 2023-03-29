@@ -6,9 +6,31 @@ import (
 	"strings"
 )
 
+/*
+*   .csv files as defined in RFC-4180      https://www.rfc-editor.org/rfc/rfc4180
+- each record is located on a separate line, delimted by a line break
+- the last record in the file may or may not have an ending line break
+(- there may be an optional header)
+- within the header and each record there may be one or more fields separated by commas. each line should contain the same number of fields.
+- spaces are part of a field and should not be ignored.
+- the last record must not be followed by a comma. ex: aa,bb,ccc
+- Each field my or may not be enclosed in double-quotes. If the field is not enclosed in double quotes, then there may not appear quotes inside the field.
+- fields containing line breaks (CRLF), double quotes and commas should be enclosed in double-quotes:
+ex:
+    aaa, "b CRLF
+    bb", "ccc" CRLF
+    zzz,yyy,xxx
+- if double-quotes are used to enclose fields, then a double-quote appearing inside a field must be escaped by preceding it with another double quote.
+ex:
+    "aaa", "b "bb"", "ccc"
+*/
+
+
 type Table [][]string
 
-
+/*
+*   Read in the csv and squeeze it into array
+*/
 func Read(path string) (Table, error) {
     dat, err := os.ReadFile(path)
 	if err != nil{
@@ -68,26 +90,8 @@ func Read(path string) (Table, error) {
 	return rows, nil
 }
 
-/*
-*   .csv files as defined in RFC-4180      https://www.rfc-editor.org/rfc/rfc4180
-- each record is located on a separate line, delimted by a line break
-- the last record in the file may or may not have an ending line break
-(- there may be an optional header)
-- within the header and each record there may be one or more fields separated by commas. each line should contain the same number of fields.
-- spaces are part of a field and should not be ignored.
-- the last record must not be followed by a comma. ex: aa,bb,ccc
-- Each field my or may not be enclosed in double-quotes. If the field is not enclosed in double quotes, then there may not appear quotes inside the field.
-- fields containing line breaks (CRLF), double quotes and commas should be enclosed in double-quotes:
-ex:
-    aaa, "b CRLF
-    bb", "ccc" CRLF
-    zzz,yyy,xxx
-- if double-quotes are used to enclose fields, then a double-quote appearing inside a field must be escaped by preceding it with another double quote.
-ex:
-    "aaa", "b "bb"", "ccc"
-*/
 
-
+// print out the csv to terminal
 func Print(csv Table){
     // calculate the max length of symbols for each column
     maxLen := make([]int, len(csv[0]))
