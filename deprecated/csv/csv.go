@@ -1,4 +1,4 @@
-package csv
+package csv_custom
 
 import (
 	"fmt"
@@ -38,7 +38,7 @@ func Read(path string) (Table, error) {
 	}
 
 
-    // split into rows on both "\n" and windows: "\r"
+    // split into rows on both "\n" and "\r" (windows)
     raw_rows := strings.FieldsFunc(string(dat), func(c rune) bool {
         return c == '\n' || c== '\r'
     })
