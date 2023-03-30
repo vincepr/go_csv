@@ -120,5 +120,4 @@ func Print(csv Table){
         fmt.Printf("+%s", strings.Repeat("-", len))
     }
     fmt.Printf("+\n")
-
 }

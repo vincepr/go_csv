@@ -23,7 +23,7 @@ func main() {
     path := loadArgs()
 
     // for now we just display the terminal size (displaying only part of the table was on the table)
-    width,height,err := term.Size()
+    width,height,err := term.SizeXY()
     if err != nil{
         fmt.Printf("%s\n",err)
         return
