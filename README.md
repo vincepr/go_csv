@@ -16,3 +16,6 @@
 - `Binary FilepathToCsv OptionalStartRow`
 - `./bin/csv ./files/grades.csv`
 - `./bin/csv ./files/orga.csv 456`
+
+## known limitations
+since it uses the std-lib csv file reader trailing spaces after doublequte enclosed fields are not supported. ex: ` "asdf" ,"bbb"` will fail while `asdf , bbb` or ` "asdf",  "bbb"` are ok. (https://github.com/golang/go/issues/25131 if every in need to adjust the FileReader implementation)

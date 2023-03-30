@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	util "github.com/vincepr/go_csv/csv_util"
 	term "github.com/vincepr/go_csv/terminal_size"
 )
 
@@ -25,7 +26,7 @@ func main() {
 	path, startRow := loadArgs()
 
 	// read the file
-	str, err := readCsvFile(path)
+	str, err := util.ReadCsvFile(path)
 	if err != nil{
 		panic(err)
 	}
@@ -64,7 +65,15 @@ func main() {
 	if len(targetRows) <1{
 		log.Fatalln("--------------no rows found--------------")
 	}
-	printRowsFancy(targetRows, startRow, width)
+	util.PrintRowsFancy(targetRows, startRow, width)
+}
+
+func ReadCsvFile(path string) {
+	panic("unimplemented")
+}
+
+func readCsvFile(path string) {
+	panic("unimplemented")
 }
 
 // loads terminal arguments ( PATHNAME FIRSTROW ) and error checks them

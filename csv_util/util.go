@@ -1,4 +1,4 @@
-package main
+package csv_util
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func readCsvFile(path string) (string, error){
+func ReadCsvFile(path string) (string, error){
 	buf, err := os.ReadFile(path)
 	if err !=nil{
 		return "", err
@@ -14,7 +14,7 @@ func readCsvFile(path string) (string, error){
 	return string(buf), nil
 }
 
-func printRowsFancy(table [][]string, offset int, widthT int){
+func PrintRowsFancy(table [][]string, offset int, widthT int){
     // calculate the max length of symbols for each column:
     maxLen := maxLenEachColumn(table)
     // if were longer than our screensize we cutoff:
