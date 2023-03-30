@@ -21,7 +21,7 @@ import (
 
  
 func main() {
-	// load Arguments, :todo --flags
+	// load Arguments
 	path, startRow := loadArgs()
 
 	// read the file
@@ -67,7 +67,7 @@ func main() {
 	printRowsFancy(targetRows, startRow, width)
 }
 
-// loads terminal arguments and error checks them
+// loads terminal arguments ( PATHNAME FIRSTROW ) and error checks them
 func loadArgs() (string, int){
 	args := os.Args
 	if len(args) <2 {
