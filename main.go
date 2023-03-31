@@ -1,13 +1,13 @@
 package main
 
 import (
-	"encoding/csv"
 	"io"
 	"log"
 	"os"
 	"strconv"
 	"strings"
-
+	
+	csv "github.com/vincepr/go_csv/csv_altered"
 	util "github.com/vincepr/go_csv/csv_util"
 	term "github.com/vincepr/go_csv/terminal_size"
 )
@@ -40,7 +40,12 @@ func main() {
 
 	// parse the csv row by row
 	csvReader := csv.NewReader(strings.NewReader(str))
+	csvReader.Comma = ','
+	csvReader.Comment = '#'
+	csvReader.FieldsPerRecord = 0		// FieldsPerREcord=0 means it gets set after reading first row and then each row gotta be the same field count.
 	csvReader.TrimLeadingSpace = true
+	csvReader.TrimTrailingSpace = true	// our Custom Option to allow trailingspace after quotes ""
+	
 	targetRows := make([][]string, 0)
 	nthRow := 0
 	for {
@@ -66,14 +71,6 @@ func main() {
 		log.Fatalln("--------------no rows found--------------")
 	}
 	util.PrintRowsFancy(targetRows, startRow, width)
-}
-
-func ReadCsvFile(path string) {
-	panic("unimplemented")
-}
-
-func readCsvFile(path string) {
-	panic("unimplemented")
 }
 
 // loads terminal arguments ( PATHNAME FIRSTROW ) and error checks them
