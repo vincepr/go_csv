@@ -10,12 +10,12 @@ import (
 /*
 *	width, height, err of Terminal Size in Chars not pixels.
 */
-func SizeXY() (int, int, error){
+func SizeXY() (width int, height int, err error){
 	str, err :=getSize()
 	if err != nil{
 		return 0,0,err
 	}
-	width , height, err := parse(str)
+	width , height, err = parse(str)
 	return width, height, err
 }
 

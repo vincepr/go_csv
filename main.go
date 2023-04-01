@@ -1,13 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"io"
 	"log"
 	"os"
 	"strconv"
-	"strings"
-	
+
+
 	csv "github.com/vincepr/go_csv/csv_altered"
+	"github.com/vincepr/go_csv/csv_own"
 	util "github.com/vincepr/go_csv/csv_util"
 	term "github.com/vincepr/go_csv/terminal_size"
 )
@@ -16,7 +18,7 @@ import (
 *   Terminal cli to quickly print out data from a csv slightly formated +----+-----+
 *	- quick (enough for me), even for files of a few 100Mb.
 *   - prints exactly one terminal-heigh worth of data
-*   - example for first few rows: ./gocsv ./files/travel.csv		
+*   - example for first few rows: ./gocsv ./files/travel.csv
 *   - example for first few rows: ./gocsv ./files/travel.csv 5		for lines 5 and onwards
  */
 
@@ -25,11 +27,20 @@ func main() {
 	// load Arguments
 	path, startRow := loadArgs()
 
-	// read the file
-	str, err := util.ReadCsvFile(path)
-	if err != nil{
-		panic(err)
-	}
+	// // read the file in one big chunk to memory first vs
+	// str, err := util.ReadCsvFile(path)
+	// if err != nil{
+	// 	panic(err)
+	// }
+	// reader := strings.NewReader(str)
+
+	// reader to reaqd the file in increments:
+	file, err := os.Open(path)
+	defer file.Close()
+    if err != nil {
+        panic(err)
+    }
+	reader := bufio.NewReader(file)
 
 	// get our terminal width and height to decide how many rows we need
 	width, height, err := term.SizeXY()
@@ -39,7 +50,7 @@ func main() {
 	endRow 		:= startRow + height - 3
 
 	// parse the csv row by row
-	csvReader := csv.NewReader(strings.NewReader(str))
+	csvReader := csv.NewReader(reader)
 	csvReader.Comma = ','
 	csvReader.Comment = '#'
 	csvReader.FieldsPerRecord = 0		// FieldsPerREcord=0 means it gets set after reading first row and then each row gotta be the same field count.
@@ -71,6 +82,8 @@ func main() {
 		log.Fatalln("--------------no rows found--------------")
 	}
 	util.PrintRowsFancy(targetRows, startRow, width)
+
+	debug(path)
 }
 
 // loads terminal arguments ( PATHNAME FIRSTROW ) and error checks them
@@ -91,4 +104,15 @@ func loadArgs() (string, int){
 		log.Fatalln("only allowed arguments are: PATHNAME optionalSTARTROW")
 	}
     return args[1], 0
+}
+
+func debug(path string){
+	file, err := os.Open(path)
+	defer file.Close()
+    if err != nil {
+        panic(err)
+    }
+
+	reader := csv_own.NewReader(bufio.NewReader(file))
+	_, err = reader.ReadAll()
 }

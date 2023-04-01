@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func ReadCsvFile(path string) (string, error){
+func ReadCsvFile(path string) (str string, err error){
 	buf, err := os.ReadFile(path)
 	if err !=nil{
 		return "", err
