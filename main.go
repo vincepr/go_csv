@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
-
+	"time"
 
 	csv "github.com/vincepr/go_csv/csv_altered"
 	"github.com/vincepr/go_csv/csv_own"
@@ -34,6 +34,13 @@ func main() {
 	// }
 	// reader := strings.NewReader(str)
 
+	// get our terminal width and height to decide how many rows we need
+	width, height, err := term.SizeXY()
+	if err!= nil{
+		panic(err)
+	}
+	endRow := startRow + height - 3
+
 	// reader to reaqd the file in increments:
 	file, err := os.Open(path)
 	defer file.Close()
@@ -41,13 +48,6 @@ func main() {
         panic(err)
     }
 	reader := bufio.NewReader(file)
-
-	// get our terminal width and height to decide how many rows we need
-	width, height, err := term.SizeXY()
-	if err!= nil{
-		panic(err)
-	}
-	endRow 		:= startRow + height - 3
 
 	// parse the csv row by row
 	csvReader := csv.NewReader(reader)
@@ -84,6 +84,7 @@ func main() {
 	util.PrintRowsFancy(targetRows, startRow, width)
 
 	debug(path)
+	debug2(path)
 }
 
 // loads terminal arguments ( PATHNAME FIRSTROW ) and error checks them
@@ -107,6 +108,7 @@ func loadArgs() (string, int){
 }
 
 func debug(path string){
+	start := time.Now()
 	file, err := os.Open(path)
 	defer file.Close()
     if err != nil {
@@ -114,5 +116,28 @@ func debug(path string){
     }
 
 	reader := csv_own.NewReader(bufio.NewReader(file))
-	_, err = reader.ReadAll()
+	reader.TrimLeadingSpace=true
+	reader.TrimTrailingSpaceQuotes=true
+	reader.TrimTrailingSpaceDefault=true
+
+	va, err := reader.ReadAll()
+	println("custom took:   ",time.Since(start))
+	println(va)
+}
+
+func debug2(path string){
+	start := time.Now()
+	file, err := os.Open(path)
+	defer file.Close()
+    if err != nil {
+        panic(err)
+    }
+
+	reader := csv.NewReader(bufio.NewReader(file))
+	reader.TrimLeadingSpace=true
+	reader.TrimTrailingSpace=true
+	reader.FieldsPerRecord=0
+	va, err := reader.ReadAll()
+	println("original took: ",time.Since(start))
+	println(va)
 }

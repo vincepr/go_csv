@@ -1,59 +1,55 @@
-// Copyright (c) 2009 The Go Authors. All rights reserved.
+// Copyright 2011 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are
-// met:
-
-//    * Redistributions of source code must retain the above copyright
-// notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above
-// copyright notice, this list of conditions and the following disclaimer
-// in the documentation and/or other materials provided with the
-// distribution.
-//    * Neither the name of Google Inc. nor the names of its
-// contributors may be used to endorse or promote products derived from
-// this software without specific prior written permission.
-
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-// Altered from version: go1.20.2 standard-library encoding/csv
-
-
-/*
-* This file extends the standardlib csv.Reader() golang implementation:
-*	- the goal is to add a trailing space flag for the exported Reader
-*	- example ` 
-*		- `"asdf"  ,"bbb"`are not suppored while 
-*		- `asdf , bbb` or ` "asdf",  "bbb"` are ok
-* 
-* This bundle exports:
-* 
-* 	type ParseError
-* 		func (e *ParseError) Error() string
-* 		func (e *ParseError) Unwrap() error
-* 	type Reader
-* 		func NewREader(r io.Reader) *Reader
-* 		func (r *Reader) Read() (record []string, err error)
-* 
-*
-* NOTE: altered sourcecode is moved to the top where it makes sense
-* 		otherwise enclosed with ALTERED: tag in commendts:
-*	//	ALTERED: Begin
-*	// ...
-*	//	ALTERED: End
-*/
-
-package csv_altered
+// Package csv reads and writes comma-separated values (CSV) files.
+// There are many kinds of CSV files; this package supports the format
+// described in RFC 4180.
+//
+// A csv file contains zero or more records of one or more fields per record.
+// Each record is separated by the newline character. The final record may
+// optionally be followed by a newline character.
+//
+//	field1,field2,field3
+//
+// White space is considered part of a field.
+//
+// Carriage returns before newline characters are silently removed.
+//
+// Blank lines are ignored. A line with only whitespace characters (excluding
+// the ending newline character) is not considered a blank line.
+//
+// Fields which start and stop with the quote character " are called
+// quoted-fields. The beginning and ending quote are not part of the
+// field.
+//
+// The source:
+//
+//	normal string,"quoted-field"
+//
+// results in the fields
+//
+//	{`normal string`, `quoted-field`}
+//
+// Within a quoted-field a quote character followed by a second quote
+// character is considered a single quote.
+//
+//	"the ""word"" is true","a ""quoted-field"""
+//
+// results in
+//
+//	{`the "word" is true`, `a "quoted-field"`}
+//
+// Newlines and commas may be included in a quoted-field
+//
+//	"Multi-line
+//	field","comma is ,"
+//
+// results in
+//
+//	{`Multi-line
+//	field`, `comma is ,`}
+package main
 
 import (
 	"bufio"
@@ -65,40 +61,6 @@ import (
 	"unicode/utf8"
 )
 
-/*
-*	Altered Source Code
-*/
-
-// A Reader reads records from a CSV-encoded file.
-type Reader struct {
-	Comma rune
-	Comment rune
-	FieldsPerRecord int
-	LazyQuotes bool
-	TrimLeadingSpace bool
-// ALTERED: start
-	// If TrimTrailingSpace is true, trailing white space after a field is ignored. 
-	// No matter if encloded in "" or not
-	TrimTrailingSpace bool
-// ALTERED: end
-	ReuseRecord bool
-	TrailingComma bool
-	r *bufio.Reader
-	numLine int
-	offset int64
-	rawBuffer []byte
-	recordBuffer []byte
-	fieldIndexes []int
-	fieldPositions []position
-	lastRecord []string
-}
-
-
-
-
-/*
-*	unaltered Source code from golang standard-library > encoding > csv
-*/
 // A ParseError is returned for parsing errors.
 // Line numbers are 1-indexed and columns are 0-indexed.
 type ParseError struct {
@@ -125,12 +87,93 @@ var (
 	ErrBareQuote  = errors.New("bare \" in non-quoted-field")
 	ErrQuote      = errors.New("extraneous or missing \" in quoted-field")
 	ErrFieldCount = errors.New("wrong number of fields")
+
+	// Deprecated: ErrTrailingComma is no longer used.
+	ErrTrailingComma = errors.New("extra delimiter at end of line")
 )
 
 var errInvalidDelim = errors.New("csv: invalid field or comment delimiter")
 
 func validDelim(r rune) bool {
 	return r != 0 && r != '"' && r != '\r' && r != '\n' && utf8.ValidRune(r) && r != utf8.RuneError
+}
+
+// A Reader reads records from a CSV-encoded file.
+//
+// As returned by NewReader, a Reader expects input conforming to RFC 4180.
+// The exported fields can be changed to customize the details before the
+// first call to Read or ReadAll.
+//
+// The Reader converts all \r\n sequences in its input to plain \n,
+// including in multiline field values, so that the returned data does
+// not depend on which line-ending convention an input file uses.
+type Reader struct {
+	// Comma is the field delimiter.
+	// It is set to comma (',') by NewReader.
+	// Comma must be a valid rune and must not be \r, \n,
+	// or the Unicode replacement character (0xFFFD).
+	Comma rune
+
+	// Comment, if not 0, is the comment character. Lines beginning with the
+	// Comment character without preceding whitespace are ignored.
+	// With leading whitespace the Comment character becomes part of the
+	// field, even if TrimLeadingSpace is true.
+	// Comment must be a valid rune and must not be \r, \n,
+	// or the Unicode replacement character (0xFFFD).
+	// It must also not be equal to Comma.
+	Comment rune
+
+	// FieldsPerRecord is the number of expected fields per record.
+	// If FieldsPerRecord is positive, Read requires each record to
+	// have the given number of fields. If FieldsPerRecord is 0, Read sets it to
+	// the number of fields in the first record, so that future records must
+	// have the same field count. If FieldsPerRecord is negative, no check is
+	// made and records may have a variable number of fields.
+	FieldsPerRecord int
+
+	// If LazyQuotes is true, a quote may appear in an unquoted field and a
+	// non-doubled quote may appear in a quoted field.
+	LazyQuotes bool
+
+	// If TrimLeadingSpace is true, leading white space in a field is ignored.
+	// This is done even if the field delimiter, Comma, is white space.
+	TrimLeadingSpace bool
+
+	// ReuseRecord controls whether calls to Read may return a slice sharing
+	// the backing array of the previous call's returned slice for performance.
+	// By default, each call to Read returns newly allocated memory owned by the caller.
+	ReuseRecord bool
+
+	// Deprecated: TrailingComma is no longer used.
+	TrailingComma bool
+
+	r *bufio.Reader
+
+	// numLine is the current line being read in the CSV file.
+	numLine int
+
+	// offset is the input stream byte offset of the current reader position.
+	offset int64
+
+	// rawBuffer is a line buffer only used by the readLine method.
+	rawBuffer []byte
+
+	// recordBuffer holds the unescaped fields, one after another.
+	// The fields can be accessed by using the indexes in fieldIndexes.
+	// E.g., For the row `a,"b","c""d",e`, recordBuffer will contain `abc"de`
+	// and fieldIndexes will contain the indexes [1, 2, 5, 6].
+	recordBuffer []byte
+
+	// fieldIndexes is an index of fields inside recordBuffer.
+	// The i'th field ends at offset fieldIndexes[i] in recordBuffer.
+	fieldIndexes []int
+
+	// fieldPositions is an index of field positions for the
+	// last record returned by Read.
+	fieldPositions []position
+
+	// lastRecord is a record cache and only used when ReuseRecord == true.
+	lastRecord []string
 }
 
 // NewReader returns a new Reader that reads from r.
@@ -159,34 +202,33 @@ func (r *Reader) Read() (record []string, err error) {
 	return record, err
 }
 
-//  // FieldPos returns the line and column corresponding to
-// // the start of the field with the given index in the slice most recently
-// // returned by Read. Numbering of lines and columns starts at 1;
-// // columns are counted in bytes, not runes.
-// //
-// // If this is called with an out-of-bounds index, it panics.
-// func (r *Reader) FieldPos(field int) (line, column int) {
-// 	if field < 0 || field >= len(r.fieldPositions) {
-// 		panic("out of range index passed to FieldPos")
-// 	}
-// 	p := &r.fieldPositions[field]
-// 	return p.line, p.col
-// }
+// FieldPos returns the line and column corresponding to
+// the start of the field with the given index in the slice most recently
+// returned by Read. Numbering of lines and columns starts at 1;
+// columns are counted in bytes, not runes.
+//
+// If this is called with an out-of-bounds index, it panics.
+func (r *Reader) FieldPos(field int) (line, column int) {
+	if field < 0 || field >= len(r.fieldPositions) {
+		panic("out of range index passed to FieldPos")
+	}
+	p := &r.fieldPositions[field]
+	return p.line, p.col
+}
 
-
-// // InputOffset returns the input stream byte offset of the current reader
-// // position. The offset gives the location of the end of the most recently
-// // read row and the beginning of the next row.
-// func (r *Reader) InputOffset() int64 {
-// 	return r.offset
-// } 
+// InputOffset returns the input stream byte offset of the current reader
+// position. The offset gives the location of the end of the most recently
+// read row and the beginning of the next row.
+func (r *Reader) InputOffset() int64 {
+	return r.offset
+}
 
 // pos holds the position of a field in the current line.
 type position struct {
 	line, col int
 }
 
- // ReadAll reads all the remaining records from r.
+// ReadAll reads all the remaining records from r.
 // Each record is a slice of fields.
 // A successful call returns err == nil, not err == io.EOF. Because ReadAll is
 // defined to read until EOF, it does not treat end of file as an error to be
@@ -202,7 +244,7 @@ func (r *Reader) ReadAll() (records [][]string, err error) {
 		}
 		records = append(records, record)
 	}
-} 
+}
 
 // readLine reads the next line (with the trailing endline).
 // If EOF is hit without a trailing endline, it will be omitted.
@@ -285,26 +327,17 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 	pos := position{line: r.numLine, col: 1}
 parseField:
 	for {
-// ALTERED: start
-		// always trim extra whitespace if "" enclosed field.
-		preTrim := bytes.TrimLeftFunc(line, unicode.IsSpace)
-		if (len(preTrim) > 0 && preTrim[0]=='"') || r.TrimLeadingSpace{
-			line = preTrim
+		if r.TrimLeadingSpace {
+			i := bytes.IndexFunc(line, func(r rune) bool {
+				return !unicode.IsSpace(r)
+			})
+			if i < 0 {
+				i = len(line)
+				pos.col -= lengthNL(line)
+			}
+			line = line[i:]
+			pos.col += i
 		}
-		
-		// if r.TrimLeadingSpace {
-		// 	i := bytes.IndexFunc(line, func(r rune) bool {
-		// 		return !unicode.IsSpace(r)
-		// 	})
-		// 	if i < 0 {
-		// 		i = len(line)
-		// 		pos.col -= lengthNL(line)
-		// 	}
-		// 	line = line[i:]
-		// 	pos.col += i
-		// }
-// ALTERED: end
-
 		if len(line) == 0 || line[0] != '"' {
 			// Non-quoted string field
 			i := bytes.IndexRune(line, r.Comma)
@@ -314,13 +347,6 @@ parseField:
 			} else {
 				field = field[:len(field)-lengthNL(field)]
 			}
-// ALTERED: start
-			// trim trailing spaces when enabled.
-			if r.TrimTrailingSpace {
-				field = bytes.TrimRightFunc(field, unicode.IsSpace)
-			}
-// ALTERED: end
-
 			// Check to make sure a quote does not appear in field.
 			if !r.LazyQuotes {
 				if j := bytes.IndexByte(field, '"'); j >= 0 {
@@ -349,10 +375,7 @@ parseField:
 					// Hit next quote.
 					r.recordBuffer = append(r.recordBuffer, line[:i]...)
 					line = line[i+quoteLen:]
-// ALTERED: start
-					line =bytes.TrimLeftFunc(line, unicode.IsSpace)
 					pos.col += i + quoteLen
-// ALTERED: end
 					switch rn := nextRune(line); {
 					case rn == '"':
 						// `""` sequence (append quote).
